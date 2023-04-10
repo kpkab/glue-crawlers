@@ -1,71 +1,43 @@
-kind: Pod
-apiVersion: v1
-metadata:
-  name: glue_crawler
-  labels:
-    app: glue_crawler
-spec:
-  containers:
-    - name: glue_crawler
-      image: 'vijay165/glue_crawler'
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: glue_crawler
-spec:
-  selector:
-    app: glue_crawler
-  ports:
-    - port: 8000
----
-
-
-
-# kind: Pod
-# apiVersion: v1
-# metadata:
-#   name: bar-app
-#   labels:
-#     app: bar
-# spec:
-#   containers:
-#     - name: bar-app
-#       image: 'vijay165/myapp2'
-# ---
-# kind: Service
-# apiVersion: v1
-# metadata:
-#   name: bar-service
-# spec:
-#   selector:
-#     app: bar
-#   ports:
-#     - port: 8000
-# ---
-
-
-
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: glue_crawler
+  name: glue-app
 spec:
   rules:
-    - http:
+    -  http:
         paths:
-          - path: /app
-            pathType: Prefix
-            backend:
-              service:
-                name: glue_crawler
-                port:
-                  number: 8000
-          # - path: /bar
-          #   pathType: Prefix
-          #   backend:
-          #     service:
-          #       name: bar-service
-          #       port:
-          #         number: 8000
----
+        - path: /database
+          pathType: Prefix
+          backend:
+            service:
+              name: glue-database-service
+              port:
+                name: http
+        - path: /crawler
+          pathType: Prefix
+          backend:
+            service:
+              name: glue-crawler-service
+              port:
+                name: http
+        - path: /connection
+          pathType: Prefix
+          backend:
+            service:
+              name: glue-connection-service
+              port:
+                name: http
+        - path: /table
+          pathType: Prefix
+          backend:
+            service:
+              name: glue-table-service
+              port:
+                name: http
+        - path: /job
+          pathType: Prefix
+          backend:
+            service:
+              name: glue-job-service
+              port:
+                name: http

@@ -1,13 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: glue_crawler
+  name: glue-crawler-service
 spec:
   selector:
-    app: glue_crawler
+    app: glue-crawler
   ports:
     - name: http
       protocol: TCP
-      port: 80
-      targetPort: 80
-  type: LoadBalancer
+      port: 8000

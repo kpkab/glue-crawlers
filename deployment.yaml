@@ -1,19 +1,19 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: glue_cawler
+  name: glue-crawler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: glue_crawler
+      app: glue-crawler
   template:
     metadata:
       labels:
-        app: glue_crawler
+        app: glue-crawler
     spec:
       containers:
-      - name: glue_cawler
+      - name: glue-crawler
         image:  vijay165/glue_crawler
         ports:
         - containerPort: 80
