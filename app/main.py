@@ -1,9 +1,9 @@
-from fastapi import FastAPI
-from dotenv import dotenv_values
 import boto3
 import botocore
-from app.model import S3Targets, JdbcTargets, DeltaTargets, CatalogTargets
-from app.model import SuccessResponse, ErrorResponse, ExceptionResponse
+from dotenv import dotenv_values
+from fastapi import FastAPI
+from model import (CatalogTargets, DeltaTargets, ErrorResponse,
+                   ExceptionResponse, JdbcTargets, S3Targets, SuccessResponse)
 
 config = dotenv_values(".env")
 ACCESS_ID = config.get("aws_access_key_id")
@@ -14,23 +14,23 @@ REGION = config.get("aws_region")
 client = boto3.client('glue', aws_access_key_id=ACCESS_ID,
                       aws_secret_access_key=ACCESS_KEY, region_name=REGION)
 
-app = FastAPI(openapi_url="/crawler/openapi.json",docs_url="/crawler/docs")
+app = FastAPI(openapi_url="/crawler/openapi.json", docs_url="/crawler/docs")
 
 
 @app.post("/crawler/create_s3_crawler")
-async def create_s3_crawler(glue_crawler:S3Targets):
+async def create_s3_crawler(glue: S3Targets):
     """
     This endpoint creates a Glue crawler for S3 target.
     """
     try:
         response = client.create_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName =glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'S3Targets': [
                     {
-                        'Path': glue_crawler.S3Path
+                        'Path': glue.S3Path
                     },
                 ]})
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -51,21 +51,22 @@ async def create_s3_crawler(glue_crawler:S3Targets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.post("/crawler/create_jdbc_crawler")
-async def create_jdbc_crawler(glue_crawler:JdbcTargets):
+async def create_jdbc_crawler(glue: JdbcTargets):
     """
     This endpoint creates a Glue crawler for JDBC target.
     """
     try:
         response = client.create_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName= glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'JdbcTargets': [
                     {
-                        'ConnectionName': glue_crawler.ConnectionName,
-                        'Path': glue_crawler.Path,
+                        'ConnectionName': glue.ConnectionName,
+                        'Path': glue.Path,
                     },
                 ]})
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -86,28 +87,29 @@ async def create_jdbc_crawler(glue_crawler:JdbcTargets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.post("/crawler/create_catalog_crawler")
-async def create_catalog_crawler(glue_crawler:CatalogTargets):
+async def create_catalog_crawler(glue: CatalogTargets):
     """
     This endpoint creates a Glue crawler for catalog target.
     """
 
     try:
         response = client.create_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
+            Name=glue.Name,
+            Role=glue.Role,
             Targets={
                 'CatalogTargets': [
                     {
-                        'DatabaseName': glue_crawler.DatabaseName,
+                        'DatabaseName': glue.DatabaseName,
                         'Tables': [
-                            glue_crawler.Tables,
+                            glue.Tables,
                         ],
                     },
                 ]},
             SchemaChangePolicy={
-                'UpdateBehavior': glue_crawler.UpdateBehavior,
-                'DeleteBehavior': glue_crawler.DeleteBehavior
+                'UpdateBehavior': glue.UpdateBehavior,
+                'DeleteBehavior': glue.DeleteBehavior
             })
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'])
@@ -127,21 +129,22 @@ async def create_catalog_crawler(glue_crawler:CatalogTargets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.post("/crawler/create_delta_crawler")
-async def create_delta_crawler(glue_crawler:DeltaTargets):
+async def create_delta_crawler(glue: DeltaTargets):
     """
     This endpoint creates a Glue crawler for delta target.
     """
     try:
         response = client.create_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName=glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'DeltaTargets': [
                     {
                         'DeltaTables': [
-                            glue_crawler.DeltaTables,
+                            glue.DeltaTables,
                         ],
                     },
                 ]})
@@ -163,6 +166,7 @@ async def create_delta_crawler(glue_crawler:DeltaTargets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.get('/crawler/get_crawlers')
 async def get_crawlers():
     """
@@ -171,7 +175,7 @@ async def get_crawlers():
     """
     try:
         response = client.get_crawlers()
-        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'],data=response)
+        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'OperationTimeoutException':
             return ExceptionResponse(status=error.response['ResponseMetadata']['HTTPStatusCode'], message=error.response['Error'])
@@ -180,8 +184,9 @@ async def get_crawlers():
     except Exception as e:
         return ExceptionResponse()
 
-@app.post('/crawler/get_crawler/{crawler_name}')
-async def get_crawler(crawler_name : str):
+
+@app.get('/crawler/get_crawler/{crawler_name}')
+async def get_crawler(crawler_name: str):
     """
     This endpoint return the Glue crawler based on param.
     The supported target types are: S3Targets, JdbcTargets, CatalogTargets, DeltaTargets.
@@ -190,7 +195,7 @@ async def get_crawler(crawler_name : str):
         response = client.get_crawler(
             Name=crawler_name
         )
-        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'],data=response)
+        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'EntityNotFoundException':
             return ExceptionResponse(status=error.response['ResponseMetadata']['HTTPStatusCode'], message=error.response['Error'])
@@ -201,6 +206,7 @@ async def get_crawler(crawler_name : str):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.get('/crawler/list_crawlers')
 async def list_crawlers():
     """
@@ -209,7 +215,7 @@ async def list_crawlers():
     """
     try:
         response = client.list_crawlers()
-        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'],data=response)
+        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'OperationTimeoutException':
             return ExceptionResponse(status=error.response['ResponseMetadata']['HTTPStatusCode'], message=error.response['Error'])
@@ -218,15 +224,16 @@ async def list_crawlers():
     except Exception as e:
         return ExceptionResponse()
 
-@app.post('/crawler/start_crawler/{crawler_name}')
-async def start_crawlers(crawler_name:str):
+
+@app.get('/crawler/start_crawler/{crawler_name}')
+async def start_crawlers(crawler_name: str):
     """
     This endpoint run the Glue crawler based on param.
     The supported target types are: S3Targets, JdbcTargets, CatalogTargets, DeltaTargets.
     """
     try:
         response = client.start_crawler(Name=crawler_name)
-        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'],data={"message":"Crawler started successfully"})
+        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data={"message": "Crawler started successfully"})
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'EntityNotFoundException':
             return ExceptionResponse(status=error.response['ResponseMetadata']['HTTPStatusCode'], message=error.response['Error'])
@@ -239,17 +246,17 @@ async def start_crawlers(crawler_name:str):
     except Exception as e:
         return ExceptionResponse()
 
-@app.post('/crawler/stop_crawler/{crawler_name}')
-async def stop_crawlers(crawler_name:str):
+
+@app.get('/crawler/stop_crawler/{crawler_name}')
+async def stop_crawlers(crawler_name: str):
     """
     This endpoint stop the Glue crawler based on param.
     The supported target types are: S3Targets, JdbcTargets, CatalogTargets, DeltaTargets.
     """
     try:
-        # body = request.json()
         response = client.stop_crawler(Name=crawler_name)
         print('res', response)
-        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'],data={"message":"Crawler stopped successfully"})
+        return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data={"message": "Crawler stopped successfully"})
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'EntityNotFoundException':
             return ExceptionResponse(status=error.response['ResponseMetadata']['HTTPStatusCode'], message=error.response['Error'])
@@ -264,24 +271,25 @@ async def stop_crawlers(crawler_name:str):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.put("/crawler/update_s3_crawler")
-async def update_s3_crawler(glue_crawler:S3Targets):
+async def update_s3_crawler(glue: S3Targets):
     """
     This endpoint update a Glue crawler for S3 target.
     """
     try:
         response = client.update_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName =glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'S3Targets': [
                     {
-                        'Path': glue_crawler.S3Path
+                        'Path': glue.S3Path
                     },
                 ]})
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'])
+            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
         else:
             return ErrorResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
@@ -300,26 +308,27 @@ async def update_s3_crawler(glue_crawler:S3Targets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.put("/crawler/update_jdbc_crawler")
-async def update_jdbc_crawler(glue_crawler:JdbcTargets):
+async def update_jdbc_crawler(glue: JdbcTargets):
     """
     This endpoint update a Glue crawler for JDBC target.
     """
 
     try:
         response = client.update_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName= glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'JdbcTargets': [
                     {
-                        'ConnectionName': glue_crawler.ConnectionName,
-                        'Path': glue_crawler.Path,
+                        'ConnectionName': glue.ConnectionName,
+                        'Path': glue.Path,
                     },
                 ]})
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'])
+            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
         else:
             return ErrorResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
@@ -338,31 +347,32 @@ async def update_jdbc_crawler(glue_crawler:JdbcTargets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.put("/crawler/update_catalog_crawler")
-async def update_catalog_crawler(glue_crawler:CatalogTargets):
+async def update_catalog_crawler(glue: CatalogTargets):
     """
     This endpoint update a Glue crawler for catalog target.
     """
 
     try:
         response = client.update_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
+            Name=glue.Name,
+            Role=glue.Role,
             Targets={
                 'CatalogTargets': [
                     {
-                        'DatabaseName': glue_crawler.DatabaseName,
+                        'DatabaseName': glue.DatabaseName,
                         'Tables': [
-                            glue_crawler.Tables,
+                            glue.Tables,
                         ],
                     },
                 ]},
             SchemaChangePolicy={
-                'UpdateBehavior': glue_crawler.UpdateBehavior,
-                'DeleteBehavior': glue_crawler.DeleteBehavior
+                'UpdateBehavior': glue.UpdateBehavior,
+                'DeleteBehavior': glue.DeleteBehavior
             })
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'])
+            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
         else:
             return ErrorResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
@@ -381,26 +391,27 @@ async def update_catalog_crawler(glue_crawler:CatalogTargets):
     except Exception as e:
         return ExceptionResponse()
 
+
 @app.put("/crawler/update_delta_crawler")
-async def update_delta_crawler(glue_crawler:DeltaTargets):
+async def update_delta_crawler(glue: DeltaTargets):
     """
     This endpoint update a Glue crawler for delta target.
     """
     try:
         response = client.update_crawler(
-            Name=glue_crawler.Name,
-            Role=glue_crawler.Role,
-            DatabaseName=glue_crawler.DatabaseName,
+            Name=glue.Name,
+            Role=glue.Role,
+            DatabaseName=glue.DatabaseName,
             Targets={
                 'DeltaTargets': [
                     {
                         'DeltaTables': [
-                            glue_crawler.DeltaTables,
+                            glue.DeltaTables,
                         ],
                     },
                 ]})
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'])
+            return SuccessResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
         else:
             return ErrorResponse(status=response['ResponseMetadata']['HTTPStatusCode'], data=response)
     except botocore.exceptions.ClientError as error:
